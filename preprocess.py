@@ -14,11 +14,12 @@ def preprocess_input(img, args):
     length = len(img)
     
     img = relu(img) # 검은색 픽셀 값: 음수 -> 0
+    # [0,255]로 정규화 & 색 대비 최대한 유지
+    for idx in range(length):
+        img[idx] = img[idx] / (np.max(img[idx])/255)
 
     if args.process_type != "original":
-        # [0,255]로 정규화 with 색 대비 최대한 유지
-        for idx in range(length):
-            img[idx] = img[idx] / (np.max(img[idx])/255)
+        
         img = img.astype(np.uint8)
 
         for idx in range(length):
@@ -37,7 +38,7 @@ def preprocess_input(img, args):
 
 
 def preprocess_label(img):
-    return img.astype(np.float64) # np.int64 -> np.float64
+    return img.astype(np.float32) # np.int64 -> np.int8 (0, 1 값만 존재하므로 용량 줄이기 // uint8로 저장하면 torchvision.transforms.ToTensor함수에서 scaling이 적용됨)
 
 
 def argparser():
@@ -56,9 +57,9 @@ def main():
     Logic = ["AND","MAJ","OR"]
 
     # nifti 개수 = 300
-    for i in range(300):
+    for i in range(150):
         idx = str(i).zfill(3)
-        proxy = nib.load(f"./kits21/data/case_00{idx}/imaging.nii.gz")
+        proxy = nib.load(f"./kits21/kits21/data/case_00{idx}/imaging.nii.gz")
         input = proxy.get_fdata()
         input = preprocess_input(input, args)
         with open(f'./data/{args.process_type}/input/imaging_{idx}.pickle', 'wb') as f:
