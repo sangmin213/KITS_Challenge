@@ -21,7 +21,7 @@ def train():
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=2)  # goal: maximize Dice score
     grad_scaler = torch.cuda.amp.GradScaler(enabled=False)
     epochs = 15
-    train_len = 120 # train data 개수
+    train_len = 200 # train data 개수
 
     for epoch in range(epochs):
         print("-"*50)
@@ -72,7 +72,7 @@ def train():
     torch.save(optimizer.state_dict(), "./optimizer.pt")
 
 
-def eval(idx):
+def eval(path_idx, idx):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = Unet().to(device)
 
@@ -80,7 +80,7 @@ def eval(idx):
     model.load_state_dict(checkpoint)
     model.eval()
 
-    path = str(0).zfill(3)
+    path = str(path_idx).zfill(3)
     dataset = KidneyDataset(index=path,preprocess="clahe",transform=transform)
     data = dataset.__getitem__(idx)
     
@@ -90,10 +90,10 @@ def eval(idx):
     pred = model(input).to(dtype=torch.float32)
     out = (pred > 0.5).float() # tensor([0.,0.,1.,1.])
     
-    # Show inference image
-    # cv2.imwrite("./input.png",np.array(input[0,0,:,:].cpu()))
-    save_image(label*255, f'label{idx}.png')
-    save_image(out*255, f'pred{idx}.png')
+    # # Show inference image
+    # # cv2.imwrite("./input.png",np.array(input[0,0,:,:].cpu()))
+    # save_image(label*255, f'label{idx}.png')
+    # save_image(out*255, f'pred{idx}.png')
 
     # print("{}-th Eval DICE coeff: {:.3f}".format(idx, 1-dice_loss(out, label))) # dice_loss 값이 음수라면 epsilon에 의한 것. 약 loss=0 으로 추정됨
 
@@ -129,15 +129,20 @@ def eval(idx):
 
 
 def main():
-    train()    
+    # train()    
     
     dice_score = 0.0
-    for i in tqdm(range(611)):
-        dice_score += eval(i)
-    dice_score /= 611
+    data_cnt = 0
+    for i in tqdm(range(230,270)):
+        path = str(i).zfill(3)
+        dataset = KidneyDataset(index=path,preprocess="clahe",transform=transform)
+        for idx in range(len(dataset)):
+            dice_score += eval(i,idx)
+        data_cnt += len(dataset)
+    dice_score /= data_cnt
     print(dice_score)
 
-    print(eval(100))
+    # print(eval(0,100))
 
 if __name__ == "__main__":
     main()
